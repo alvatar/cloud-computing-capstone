@@ -11,8 +11,8 @@ echo "\nSetting up Cassandra\n"
 #cqlsh -f $DIR/cql/setup_$ID.cql
 
 echo "\nRunning Hadoop jobs\n"
-#pig -Dpig.additional.jars=/usr/share/cassandra/apache-cassandra.jar:/usr/share/cassandra/cassandra-driver-core-2.0.9.2.jar:/usr/share/cassandra/lib/*.jar -f $DIR/pig/$ID.pig
+$DIR/pig/run-pig.sh $DIR/pig/$ID.pig
 
 echo "\nStoring in Cassandra\n"
-hadoop fs -get /user/ubuntu/results/$ID $ID.csv
-cqlsh -f $DIR/cql/store_$ID.cql
+#hadoop fs -getmerge /user/ubuntu/results/$ID $ID.csv
+#cqlsh -f $DIR/cql/store_$ID.cql
