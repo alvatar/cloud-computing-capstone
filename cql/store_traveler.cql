@@ -16,6 +16,6 @@ COPY trip_combinations (
                         connection_flight,
                         destination,
                         destination_arr_delay
-                        ) FROM 'traveler.csv';
+                        ) FROM 'results/traveler.csv';
 
 EXIT;

@@ -14,5 +14,5 @@ echo "\nRunning Hadoop jobs\n"
 $DIR/pig/run-pig.sh $DIR/pig/$ID.pig
 
 echo "\nStoring in Cassandra\n"
-hadoop fs -getmerge /user/ubuntu/results/$ID $ID.csv
+hadoop fs -getmerge /user/ubuntu/results/$ID results/$ID.csv
 cqlsh -f $DIR/cql/store_$ID.cql
