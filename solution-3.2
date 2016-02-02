@@ -1,0 +1,48 @@
+Running this query in Cassandra:
+USE airports;
+SELECT * FROM trip_combinations WHERE origin = 'CMI' AND connection = 'ORD' AND destination = 'LAX' AND origin_date = '2008-03-04';
+SELECT * FROM trip_combinations WHERE origin = 'JAX' AND connection = 'DFW' AND destination = 'CRP' AND origin_date = '2008-09-09';
+SELECT * FROM trip_combinations WHERE origin = 'SLC' AND connection = 'BFL' AND destination = 'LAX' AND origin_date = '2008-04-01';
+SELECT * FROM trip_combinations WHERE origin = 'LAX' AND connection = 'SFO' AND destination = 'PHX' AND origin_date = '2008-07-12';
+SELECT * FROM trip_combinations WHERE origin = 'DFW' AND connection = 'ORD' AND destination = 'DFW' AND origin_date = '2008-06-10';
+SELECT * FROM trip_combinations WHERE origin = 'LAX' AND connection = 'ORD' AND destination = 'JFK' AND origin_date = '2008-01-01';
+
+
+
+
+
+ origin | connection | destination | origin_date              | connection_arr_delay | connection_carrier | connection_date          | connection_date_time     | connection_flight | destination_arr_delay | origin_carrier | origin_date_time         | origin_flight
+--------+------------+-------------+--------------------------+----------------------+--------------------+--------------------------+--------------------------+-------------------+-----------------------+----------------+--------------------------+---------------
+    CMI |        ORD |         LAX | 2008-03-04 00:00:00+0000 |                  -14 |                 AA | 2008-03-06 00:00:00+0000 | 2008-03-06 19:50:00+0000 |               607 |                   -24 |             MQ | 2008-03-04 07:10:00+0000 |          4278
+
+(1 rows)
+
+ origin | connection | destination | origin_date              | connection_arr_delay | connection_carrier | connection_date          | connection_date_time     | connection_flight | destination_arr_delay | origin_carrier | origin_date_time         | origin_flight
+--------+------------+-------------+--------------------------+----------------------+--------------------+--------------------------+--------------------------+-------------------+-----------------------+----------------+--------------------------+---------------
+    JAX |        DFW |         CRP | 2008-09-09 00:00:00+0000 |                    1 |                 MQ | 2008-09-11 00:00:00+0000 | 2008-09-11 16:45:00+0000 |              3627 |                    -7 |             AA | 2008-09-09 07:25:00+0000 |           845
+
+(1 rows)
+
+ origin | connection | destination | origin_date              | connection_arr_delay | connection_carrier | connection_date          | connection_date_time     | connection_flight | destination_arr_delay | origin_carrier | origin_date_time         | origin_flight
+--------+------------+-------------+--------------------------+----------------------+--------------------+--------------------------+--------------------------+-------------------+-----------------------+----------------+--------------------------+---------------
+    SLC |        BFL |         LAX | 2008-04-01 00:00:00+0000 |                   12 |                 OO | 2008-04-03 00:00:00+0000 | 2008-04-03 14:55:00+0000 |              5429 |                     6 |             OO | 2008-04-01 11:00:00+0000 |          3755
+
+(1 rows)
+
+ origin | connection | destination | origin_date              | connection_arr_delay | connection_carrier | connection_date          | connection_date_time     | connection_flight | destination_arr_delay | origin_carrier | origin_date_time         | origin_flight
+--------+------------+-------------+--------------------------+----------------------+--------------------+--------------------------+--------------------------+-------------------+-----------------------+----------------+--------------------------+---------------
+    LAX |        SFO |         PHX | 2008-07-12 00:00:00+0000 |                  -13 |                 US | 2008-07-14 00:00:00+0000 | 2008-07-14 19:25:00+0000 |               412 |                   -19 |             WN | 2008-07-12 06:50:00+0000 |          3534
+
+(1 rows)
+
+ origin | connection | destination | origin_date              | connection_arr_delay | connection_carrier | connection_date          | connection_date_time     | connection_flight | destination_arr_delay | origin_carrier | origin_date_time         | origin_flight
+--------+------------+-------------+--------------------------+----------------------+--------------------+--------------------------+--------------------------+-------------------+-----------------------+----------------+--------------------------+---------------
+    DFW |        ORD |         DFW | 2008-06-10 00:00:00+0000 |                  -21 |                 AA | 2008-06-12 00:00:00+0000 | 2008-06-12 16:45:00+0000 |              2341 |                   -10 |             UA | 2008-06-10 07:00:00+0000 |          1104
+
+(1 rows)
+
+ origin | connection | destination | origin_date              | connection_arr_delay | connection_carrier | connection_date          | connection_date_time     | connection_flight | destination_arr_delay | origin_carrier | origin_date_time         | origin_flight
+--------+------------+-------------+--------------------------+----------------------+--------------------+--------------------------+--------------------------+-------------------+-----------------------+----------------+--------------------------+---------------
+    LAX |        ORD |         JFK | 2008-01-01 00:00:00+0000 |                    0 |                 B6 | 2008-01-03 00:00:00+0000 | 2008-01-03 19:00:00+0000 |               918 |                    -7 |             UA | 2008-01-01 06:00:00+0000 |           618
+
+(1 rows)
