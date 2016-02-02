@@ -12,8 +12,14 @@ data = LOAD '/user/ubuntu/clean_on_time' using PigStorage() as
 
 grp_pairs = GROUP data BY (Origin, Dest);
 
-by_avg = FOREACH grp_pairs GENERATE FLATTEN(group), AVG(data.ArrDelay) as AvgDelay;
+by_avg = FOREACH grp_pairs GENERATE group, AVG(data.ArrDelay) as AvgDelay;
 
 
+Z = LIMIT by_avg 5000;
+
+DUMP Z;
+
+/*
 STORE by_avg INTO '/user/ubuntu/results/per_origin_destination_mean_arrival_delay'
   USING org.apache.pig.piggybank.storage.CSVExcelStorage(',');
+*/
