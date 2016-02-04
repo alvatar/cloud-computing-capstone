@@ -2,3 +2,4 @@
 *.crc
 *.csv
 results
+.DS_Store
