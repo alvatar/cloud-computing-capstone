@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
 
 source kafka-spark.env
-hadoop fs -cat clean_origin_destination/part-v001-o000-r-00000 | kafka-console-producer.sh --broker-list ip-172-30-0-239.ec2.internal:6667 --topic test2 --security-protocol PLAINTEXT
+
+BROKER_LIST="ip-172-30-0-47:6667"
+
+for i in $(hadoop fs -find 'clean_origin_destination/par*'); do
+    echo $i
+    hadoop fs -cat $i | kafka-console-producer.sh --broker-list $BROKER_LIST --topic ontime --security-protocol PLAINTEXT
+    sleep 1
+done

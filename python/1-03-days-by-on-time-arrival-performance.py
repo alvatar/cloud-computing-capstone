@@ -15,22 +15,26 @@ if __name__ == "__main__":
 
     sc = SparkContext(appName="KafkaSparkStreaming")
     sc.setLogLevel("WARN")
-    context = StreamingContext(sc, 20)
+    context = StreamingContext(sc, 2)
     context.checkpoint("checkpoint")
 
     ks = KafkaUtils.createDirectStream(context, [topic], {"metadata.broker.list": brokers})
 
-    def producePerOriginOrDest(line):
-        return ((airport, 1) for airport in line[1].split("\t")[1:2])
+    def producePerDay(line):
+        val = line[1].split("\t")
+        return(val[3], float(val[9]))
 
-    def updateFunction(newValues, runningCount):
-        if runningCount is None:
-            runningCount = 0
-        return sum(newValues, runningCount)
+    def updateFunction(newValues, movingAvg):
+        if movingAvg is None:
+            movingAvg = (0,0)
+        prevAvg, prevN = movingAvg
+        currentN = len(newValues)
+        return (float(prevAvg*prevN + sum(newValues)) / (prevN + currentN), prevN + currentN)
 
-    digest = ks.flatMap(producePerOriginOrDest)\
-            .updateStateByKey(updateFunction)\
-            .transform(lambda rdd: rdd.sortBy(lambda x: x[1], ascending=False))
+    digest = ks.map(producePerDay)\
+             .updateStateByKey(updateFunction)\
+             .map(lambda x: (x[0], x[1][0]))\
+             .transform(lambda rdd: rdd.sortBy(lambda x: x[1], ascending=True))
 
     def toCSVLine(data):
         return ','.join('"' + str(d) + '"' for d in data)
