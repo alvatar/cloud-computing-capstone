@@ -35,7 +35,7 @@ if __name__ == "__main__":
         return ','.join('"' + str(d) + '"' for d in data)
     lines = digest.map(toCSVLine)
 
-    #digest.saveAsTextFiles("/user/ubuntu/testing/see")
+    lines.saveAsTextFiles("1-01-top-10-popular-airports/output")
     digest.pprint()
 
     ssc.start()
