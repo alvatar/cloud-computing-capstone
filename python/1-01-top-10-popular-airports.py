@@ -18,7 +18,7 @@ if __name__ == "__main__":
     ssc = StreamingContext(sc, 10)
     ssc.checkpoint("checkpoint")
 
-    ks = KafkaUtils.createStream(ssc, zkQuorum, "spark-streaming-consumer", {topic: 30})
+    ks = KafkaUtils.createStream(ssc, zkQuorum, "spark-streaming-consumer", {topic: 42})
 
     def processInput(line):
         fields = line[1].split("\t")

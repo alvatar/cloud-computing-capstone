@@ -11,23 +11,21 @@ if __name__ == "__main__":
         print("Usage: script.py <zk> <topic>", file=sys.stderr)
         exit(-1)
 
-    brokers, topic = sys.argv[1:]
+    zkQuorum, topic = sys.argv[1:]
 
     sc = SparkContext(appName="KafkaSparkStreaming")
     sc.setLogLevel("WARN")
-    context = StreamingContext(sc, 2)
-    context.checkpoint("checkpoint")
+    ssc = StreamingContext(sc, 10)
+    ssc.checkpoint("checkpoint")
 
-    ks = KafkaUtils.createDirectStream(context, [topic], {"metadata.broker.list": brokers})
+    ks = KafkaUtils.createStream(ssc, zkQuorum, "spark-streaming-consumer", {topic: 42})
 
     def producePerDay(line):
         val = line[1].split("\t")
         return(val[3], float(val[9]))
 
     def updateFunction(newValues, movingAvg):
-        if movingAvg is None:
-            movingAvg = (0,0)
-        prevAvg, prevN = movingAvg
+        prevAvg, prevN = movingAvg or (0,0)
         currentN = len(newValues)
         return (float(prevAvg*prevN + sum(newValues)) / (prevN + currentN), prevN + currentN)
 
@@ -40,7 +38,11 @@ if __name__ == "__main__":
         return ','.join('"' + str(d) + '"' for d in data)
     lines = digest.map(toCSVLine)
 
-    lines.pprint()
+    lines.saveAsTextFiles("1-03-days-by-on-time-arrival-performance/output")
 
-    context.start()
-    context.awaitTermination()
+    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    pretty = digest.map(lambda (x, y): (days[int(x)-1], y))
+    pretty.pprint()
+
+    ssc.start()
+    ssc.awaitTermination()
