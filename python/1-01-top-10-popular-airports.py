@@ -18,11 +18,11 @@ if __name__ == "__main__":
     ssc = StreamingContext(sc, 10)
     ssc.checkpoint("checkpoint")
 
-    ks = KafkaUtils.createStream(ssc, zkQuorum, "spark-streaming-consumer", {topic: 36})
+    ks = KafkaUtils.createStream(ssc, zkQuorum, "spark-streaming-consumer", {topic: 30})
 
     def processInput(line):
-        year, origin, dest = line[1].split("\t")
-        return ((str(origin), 1), (str(dest), 1))
+        fields = line[1].split("\t")
+        return ((str(fields[6]), 1), (str(fields[7]), 1))
 
     def updateFunction(newValues, runningCount):
         return sum(newValues, runningCount or 0)
