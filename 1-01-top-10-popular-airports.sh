@@ -8,16 +8,21 @@ TOPIC=origin-destination
 spark-submit --packages org.apache.spark:spark-streaming-kafka_2.10:1.6.0 \
   --master yarn \
   --deploy-mode client \
-  --driver-memory 10g \
-  --executor-memory 10g \
-  --num-executors 6 \
-  --executor-cores 4 \
+  --driver-memory 4g \
+  --driver-cores 4 \
+  --executor-memory 4g \
+  --num-executors 18 \
+  --executor-cores 2 \
+  --conf spark.task.cpus=1 \
+  --conf spark.default.parallelism=36 \
   --conf spark.yarn.executor.memoryOverhead=1000 \
-  --conf spark.streaming.blockInterval=200ms \
   --conf spark.streaming.backpressure.enabled=true \
-  --conf spark.streaming.kafka.maxRate=120000 \
-  --conf spark.streaming.receiver.maxRate=120000 \
+  --conf "spark.executor.extraJavaOptions=-XX:+UseCompressedOops" \
   $SCRIPT_DIR/${THIS}.py ip-172-30-0-211.ec2.internal:2181 $TOPIC
+
+  #--conf spark.streaming.kafka.maxRate=120000 \
+  #--conf spark.streaming.receiver.maxRate=120000 \
+
 
   #$SCRIPT_DIR/${THIS}.py ip-172-30-0-239.ec2.internal:2181 $TOPIC
   #$SCRIPT_DIR/${THIS}.py ip-172-30-0-47.ec2.internal:6667 $TOPIC
