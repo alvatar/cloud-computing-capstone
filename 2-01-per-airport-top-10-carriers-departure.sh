@@ -26,7 +26,7 @@ spark-submit --packages org.apache.spark:spark-streaming-kafka_2.10:1.6.0 \
   --conf spark.default.parallelism=42 \
   --conf "spark.executor.extraJavaOptions=-XX:+UseCompressedOops" \
   --conf spark.streaming.backpressure.enabled=true \
-  $SCRIPT_DIR/${THIS}.py $KAFKA_OR_ZOOKEEPER $TOPIC
+  $SCRIPT_DIR/${THIS}.py $KAFKA_OR_ZOOKEEPER $TOPIC $CASSANDRA
 
 #--conf spark.yarn.executor.memoryOverhead=1000 \
 #--conf "spark.executor.extraJavaOptions=-XX:+UseCompressedOops" \
