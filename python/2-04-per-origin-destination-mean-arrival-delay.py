@@ -6,41 +6,50 @@ from pyspark import SparkContext
 from pyspark.streaming import StreamingContext
 from pyspark.streaming.kafka import KafkaUtils
 
+from cassandra.cluster import Cluster
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 4:
         print("Usage: script.py <zk> <topic>", file=sys.stderr)
         exit(-1)
 
-    brokers, topic = sys.argv[1:]
+    zkQuorum, topic, cassandraAddr = sys.argv[1:]
 
     sc = SparkContext(appName="KafkaSparkStreaming")
     sc.setLogLevel("WARN")
-    context = StreamingContext(sc, 2)
-    context.checkpoint("checkpoint")
+    ssc = StreamingContext(sc, 10)
+    ssc.checkpoint("checkpoint")
 
-    ks = KafkaUtils.createDirectStream(context, [topic], {"metadata.broker.list": brokers})
+    ks = KafkaUtils.createStream(ssc, zkQuorum, "spark-streaming-consumer", {topic: 42})
 
-    def producePerFlight(line):
-        val = line[1].split("\t")
-        # Origin, Destination, DepDelay
-        return((val[6], val[7]), float(val[9]))
+    def processInput(line):
+        fields = line[1].split("\t")
+        # (Origin, Destination), ArrDelay
+        return((str(fields[6]), str(fields[7])), float(fields[9]))
 
     def movingAvg(newValues, movingAvg):
-        if movingAvg is None:
-            movingAvg = (0,0)
-        prevAvg, prevN = movingAvg
+        prevAvg, prevN = movingAvg or (0,0)
         currentN = len(newValues)
         return (float(prevAvg*prevN + sum(newValues)) / (prevN + currentN), prevN + currentN)
 
-    digest = ks.map(producePerFlight)\
+    def cassandraStore(iter):
+        cassandraCluster = Cluster(contact_points=[cassandraAddr])
+        cassandra = cassandraCluster.connect('spark')
+        batch = ''.join(["insert into mean_arrivals (origin, destination, mean_arrival) values ('%s', '%s', %s) " % \
+                         (record[0], record[1], record[2]) for record in iter])
+        cassandra.execute("BEGIN BATCH\n" + batch + "APPLY BATCH")
+        cassandra.shutdown()
+
+    digest = ks.map(processInput)\
              .updateStateByKey(movingAvg)\
-             .map(lambda x: (x[0][0], x[0][1], x[1][0]))
+             .map(lambda ((origin, destination), (mean_arrival, count)): (origin, destination, mean_arrival))
 
-    def toCSVLine(data):
-        return ','.join('"' + str(d) + '"' for d in data)
-    lines = digest.map(toCSVLine)
+    # def toCSVLine(data):
+    #     return ','.join('"' + str(d) + '"' for d in data)
+    # lines = digest.map(toCSVLine)
 
+    digest.foreachRDD(lambda rdd: rdd.foreachPartition(cassandraStore))
     digest.pprint()
 
-    context.start()
-    context.awaitTermination()
+    ssc.start()
+    ssc.awaitTermination()
