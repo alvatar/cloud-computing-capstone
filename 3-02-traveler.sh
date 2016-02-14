@@ -32,11 +32,6 @@ if [[ $? != 0 ]]; then exit; fi
 
 echo "Cassandra configured"
 
-SCRIPT_DIR=python
-THIS="$(basename $0)"
-THIS=${THIS/.sh}
-TOPIC=ontime
-KAFKA_OR_ZOOKEEPER=ip-172-30-0-211.ec2.internal:2181
 spark-submit --packages org.apache.spark:spark-streaming-kafka_2.10:1.6.0 \
   --master yarn \
   --deploy-mode client \
@@ -45,6 +40,7 @@ spark-submit --packages org.apache.spark:spark-streaming-kafka_2.10:1.6.0 \
   --executor-memory 4g \
   --num-executors 15 \
   --executor-cores 2 \
+  --conf spark.streaming.receiver.maxRate=12000 \
   --conf spark.task.cpus=1 \
   --conf spark.yarn.executor.memoryOverhead=1000 \
   --conf spark.default.parallelism=42 \
@@ -55,4 +51,4 @@ spark-submit --packages org.apache.spark:spark-streaming-kafka_2.10:1.6.0 \
 #--conf spark.yarn.executor.memoryOverhead=1000 \
 #--conf "spark.executor.extraJavaOptions=-XX:+UseCompressedOops" \
 #--conf spark.streaming.kafka.maxRate=120000 \
-#--conf spark.streaming.receiver.maxRate=120000 \
+
