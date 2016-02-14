@@ -8,8 +8,8 @@ from pyspark.streaming import StreamingContext
 from pyspark.streaming.kafka import KafkaUtils
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: script.py <zk> <topic>", file=sys.stderr)
+    if len(sys.argv) != 4:
+        print("Usage: script.py <zk> <topic> <cassandra>", file=sys.stderr)
         exit(-1)
 
     brokers, topic = sys.argv[1:]

@@ -11,32 +11,34 @@ if __name__ == "__main__":
         print("Usage: script.py <zk> <topic>", file=sys.stderr)
         exit(-1)
 
-    brokers, topic = sys.argv[1:]
+    zkQuorum, topic = sys.argv[1:]
 
     sc = SparkContext(appName="KafkaSparkStreaming")
     sc.setLogLevel("WARN")
-    context = StreamingContext(sc, 20)
-    context.checkpoint("checkpoint")
+    ssc = StreamingContext(sc, 10)
+    ssc.checkpoint("checkpoint")
 
-    ks = KafkaUtils.createDirectStream(context, [topic], {"metadata.broker.list": brokers})
+    ks = KafkaUtils.createStream(ssc, zkQuorum, "spark-streaming-consumer", {topic: 42})
 
-    def producePerOriginOrDest(line):
-        return ((airport, 1) for airport in line[1].split("\t")[1:2])
+    def processInput(line):
+        fields = line[1].split("\t")
+        return ((str(fields[6]), 1), (str(fields[7]), 1))
 
     def updateFunction(newValues, runningCount):
-        if runningCount is None:
-            runningCount = 0
-        return sum(newValues, runningCount)
+        return sum(newValues, runningCount or 0)
 
-    digest = ks.flatMap(producePerOriginOrDest)\
-            .updateStateByKey(updateFunction)\
-            .transform(lambda rdd: rdd.sortBy(lambda x: x[1], ascending=False))
+    digest = ks.flatMap(processInput)\
+               .updateStateByKey(updateFunction)\
+               .transform(lambda rdd: rdd.sortBy(lambda x: x[1], ascending=False)\
+                                         .map(lambda (x, y): y).zipWithIndex().map(lambda (x, y): (y, x))
+               )
 
     def toCSVLine(data):
         return ','.join('"' + str(d) + '"' for d in data)
     lines = digest.map(toCSVLine)
 
-    lines.pprint()
+    lines.saveAsTextFiles("3-01-airports-by-popularity/output")
+    digest.pprint()
 
-    context.start()
-    context.awaitTermination()
+    ssc.start()
+    ssc.awaitTermination()

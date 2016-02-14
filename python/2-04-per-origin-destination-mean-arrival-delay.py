@@ -10,7 +10,7 @@ from cassandra.cluster import Cluster
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print("Usage: script.py <zk> <topic>", file=sys.stderr)
+        print("Usage: script.py <zk> <topic> <cassandra>", file=sys.stderr)
         exit(-1)
 
     zkQuorum, topic, cassandraAddr = sys.argv[1:]

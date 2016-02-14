@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     digest = ks.flatMap(processInput)\
                .updateStateByKey(updateFunction)\
-               .transform(lambda rdd: rdd.sortBy(lambda x: x[1], ascending=False))\
+               .transform(lambda rdd: rdd.sortBy(lambda x: x[1], ascending=False)[0:10])\
 
     def toCSVLine(data):
         return ','.join('"' + str(d) + '"' for d in data)
