@@ -36,11 +36,10 @@ if __name__ == "__main__":
     def cassandraStore(iter):
         cassandraCluster = Cluster(contact_points=[cassandraAddr])
         cassandra = cassandraCluster.connect('spark')
-        for record in iter:
-            cassandra.execute(
-                "insert into test (key, val) values ('%s', '%s')" % \
-                (str(record[0]), str(record[1]).replace('\'',''))
-            )
+        batch = ''.join(["insert into top_carriers (airport, c01, c02, c03, c04, c05, c06, c07, c08, c09, c10) values ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s') " % \
+                         tuple([str(record[0])] + [str(val).replace('\'','') for val in record[1] + ['None']*(10 - len(record[1]))])
+                         for record in iter])
+        cassandra.execute("BEGIN BATCH\n" + batch + "APPLY BATCH")
         cassandra.shutdown()
 
     # Generate a (Origin, Carrier) -> DepDelay mapping
@@ -49,17 +48,16 @@ if __name__ == "__main__":
     # Sort and select the 10 best
     digest = ks.map(processInput)\
              .updateStateByKey(movingAvg)\
-             .map(lambda ((origin, carrier), delay): (origin, (carrier, delay)))\
+             .map(lambda ((origin, carrier), (delay, count)): (origin, (carrier, delay)))\
              .groupByKey()\
-             .map(lambda (origin, flight): (origin, sorted(flight, key=lambda (carrier, delay): carrier)[:10]))\
+             .map(lambda (origin, flight): (origin, sorted(flight, key=lambda (carrier, delay): delay)[:10]))\
 
     digest.foreachRDD(lambda rdd: rdd.foreachPartition(cassandraStore))
+    digest.pprint()
 
     def toCSVLine(data):
         return ','.join('"' + str(d) + '"' for d in data)
     lines = digest.map(toCSVLine)
-
-    lines.pprint()
 
     ssc.start()
     ssc.awaitTermination()
