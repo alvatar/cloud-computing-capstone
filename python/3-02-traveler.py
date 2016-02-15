@@ -3,6 +3,7 @@ from __future__ import print_function
 import sys
 from calendar import timegm
 from datetime import datetime
+import itertools
 
 from pyspark import SparkContext
 from pyspark.streaming import StreamingContext
@@ -15,8 +16,13 @@ if __name__ == "__main__":
         print("Usage: script.py <zk> <topic> <cassandra>", file=sys.stderr)
         exit(-1)
 
-    zkQuorum, topic, cassandraAddr = sys.argv[1:]
+    zkQuorum, topic, cassandraConf = sys.argv[1:]
+    cassandraHosts = cassandraConf.split(",")
     interval = 10
+
+    useCassandra = False
+    if useCassandra:
+        print("Connecting to Cassandra instances %s" % cassandraHosts)
 
     sc = SparkContext(appName="KafkaSparkStreaming")
     sc.setLogLevel("WARN")
@@ -70,41 +76,93 @@ if __name__ == "__main__":
                      .groupByKey()\
                      .map(lambda ((origin, dest, depTime), flights): (origin, sorted(flights, key=lambda fields: fields[9])[0]))\
 
-    digest = origins.join(destinations)\
-                    .filter(lambda (key, (first, second)): (second[1]-first[1]).days == 2)\
-                    .map(lambda (key, (first, second)): (timegm(first[1].timetuple()) * 1000,
-                                                         timegm(first[2].timetuple()) * 1000,
-                                                         str(first[4]),
-                                                         str(first[5]),
-                                                         str(first[6]),
-                                                         str(first[7]),
-                                                         float(first[9]),
-                                                         timegm(second[1].timetuple()) * 1000,
-                                                         timegm(second[2].timetuple()) * 1000,
-                                                         str(second[4]),
-                                                         str(second[5]),
-                                                         str(second[7]),
-                                                         float(second[9])))
+    if useCassandra:
+        digest = origins.join(destinations)\
+                        .filter(lambda (key, (first, second)): (second[1]-first[1]).days == 2)\
+                        .map(lambda (key, (first, second)): (timegm(first[1].timetuple()) * 1000,
+                                                             timegm(first[2].timetuple()) * 1000,
+                                                             str(first[4]),
+                                                             str(first[5]),
+                                                             str(first[6]),
+                                                             str(first[7]),
+                                                             float(first[9]),
+                                                             timegm(second[1].timetuple()) * 1000,
+                                                             timegm(second[2].timetuple()) * 1000,
+                                                             str(second[4]),
+                                                             str(second[5]),
+                                                             str(second[7]),
+                                                             float(second[9])))
+    else:
+        digest = origins.join(destinations)\
+                        .filter(lambda (key, (first, second)): (second[1]-first[1]).days == 2)\
+                        .map(lambda (key, (first, second)): (first[1].strftime(isoFormatDate),
+                                                             first[2].strftime(isoFormatTime),
+                                                             str(first[4]),
+                                                             str(first[5]),
+                                                             str(first[6]),
+                                                             str(first[7]),
+                                                             float(first[9]),
+                                                             second[1].strftime(isoFormatDate),
+                                                             second[2].strftime(isoFormatTime),
+                                                             str(second[4]),
+                                                             str(second[5]),
+                                                             str(second[7]),
+                                                             float(second[9])))
 
-    def batch(iterable, n=1):
-        l = len(iterable)
-        for ndx in range(0, l, n):
-            yield iterable[ndx:min(ndx + n, l)]
+    def groupsgen(seq, size):
+        it = iter(seq)
+        while True:
+            values = ()
+            for n in xrange(size):
+                values += (it.next(),)
+                yield values
 
-    def cassandraStore(iter):
-        cassandraCluster = Cluster(contact_points=[cassandraAddr])
+    def cassandraStoreBatch(iter):
+        cassandraCluster = Cluster(contact_points=cassandraHosts)
         cassandra = cassandraCluster.connect('spark')
-        # for b in batch(iter, 100):
-        #     cBa = ''.join(["insert into trip_combinations "
-        #                      "(origin_date, origin_date_time, origin_carrier, origin_flight, origin, connection, connection_arr_delay, "
-        #                      "connection_date, connection_date_time, connection_carrier, connection_flight, destination, destination_arr_delay) "
-        #                      "values ('%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', '%s', '%s', '%s', '%s', %s)\n" % \
-        #                      record for record in b])
-        #     cassandra.execute("BEGIN BATCH\n" + cBa + "APPLY BATCH")
-        cassandra.execute("insert into test (k, v) values ('as', 's')")
+        for b in groupsgen(iter, 100):
+            cBa = ''.join(["insert into trip_combinations "
+                             "(origin_date, origin_date_time, origin_carrier, origin_flight, origin, connection, connection_arr_delay, "
+                             "connection_date, connection_date_time, connection_carrier, connection_flight, destination, destination_arr_delay) "
+                             "values ('%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', '%s', '%s', '%s', '%s', %s)\n" % \
+                             record for record in b])
+            cassandra.execute("BEGIN BATCH\n" + cBa + "APPLY BATCH")
+            # cassandra.execute("insert into test (k, v) values ('as', 's')")
         cassandra.shutdown()
 
-    digest.foreachRDD(lambda rdd: rdd.foreachPartition(cassandraStore))
+    def cassandraStoreBatch(iter):
+        cassandraCluster = Cluster(contact_points=cassandraHosts)
+        cassandra = cassandraCluster.connect('spark')
+        for b in groupsgen(iter, 100):
+            cBa = ''.join(["insert into trip_combinations "
+                             "(origin_date, origin_date_time, origin_carrier, origin_flight, origin, connection, connection_arr_delay, "
+                             "connection_date, connection_date_time, connection_carrier, connection_flight, destination, destination_arr_delay) "
+                             "values ('%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', '%s', '%s', '%s', '%s', %s)\n" % \
+                             record for record in b])
+            cassandra.execute("BEGIN BATCH\n" + cBa + "APPLY BATCH")
+            # cassandra.execute("insert into test (k, v) values ('as', 's')")
+        cassandra.shutdown()
+
+    def cassandraStore(iter):
+        cassandraCluster = Cluster(contact_points=cassandraHosts)
+        cassandra = cassandraCluster.connect('spark')
+        for record in iter:
+            cassandra.execute_async("insert into trip_combinations "
+                              "(origin_date, origin_date_time, origin_carrier, origin_flight, origin, connection, connection_arr_delay, "
+                              "connection_date, connection_date_time, connection_carrier, connection_flight, destination, destination_arr_delay) "
+                             "values ('%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', '%s', '%s', '%s', '%s', %s)\n" % \
+                              record)
+        cassandra.shutdown()
+
+    def toCSVLine(data):
+        return ','.join('"' + str(d) + '"' for d in data)
+    lines = digest.map(toCSVLine)
+
+    if useCassandra:
+        digest.foreachRDD(lambda rdd: rdd.foreachPartition(cassandraStore))
+    else:
+        lines.saveAsTextFiles("3-02-traveler/output")
+
     digest.pprint()
 
     ssc.start()

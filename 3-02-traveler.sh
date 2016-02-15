@@ -28,7 +28,7 @@ CREATE TABLE trip_combinations ( origin_date timestamp,
                                  );
 HERE
 
-if [[ $? != 0 ]]; then exit; fi
+#if [[ $? != 0 ]]; then exit; fi
 
 echo "Cassandra configured"
 
@@ -40,7 +40,8 @@ spark-submit --packages org.apache.spark:spark-streaming-kafka_2.10:1.6.0 \
   --executor-memory 4g \
   --num-executors 15 \
   --executor-cores 2 \
-  --conf spark.streaming.receiver.maxRate=12000 \
+  --conf spark.streaming.receiver.maxRate=10000 \
+  --conf spark.streaming.kafka.maxRate=10000 \
   --conf spark.task.cpus=1 \
   --conf spark.yarn.executor.memoryOverhead=1000 \
   --conf spark.default.parallelism=42 \
@@ -50,5 +51,3 @@ spark-submit --packages org.apache.spark:spark-streaming-kafka_2.10:1.6.0 \
 
 #--conf spark.yarn.executor.memoryOverhead=1000 \
 #--conf "spark.executor.extraJavaOptions=-XX:+UseCompressedOops" \
-#--conf spark.streaming.kafka.maxRate=120000 \
-
