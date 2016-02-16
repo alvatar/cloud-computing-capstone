@@ -35,19 +35,18 @@ echo "Cassandra configured"
 spark-submit --packages org.apache.spark:spark-streaming-kafka_2.10:1.6.0 \
   --master yarn \
   --deploy-mode client \
-  --driver-memory 4g \
+  --driver-memory 10g \
   --driver-cores 4 \
-  --executor-memory 4g \
-  --num-executors 15 \
+  --executor-memory 2g \
+  --num-executors 32 \
   --executor-cores 2 \
-  --conf spark.streaming.receiver.maxRate=10000 \
-  --conf spark.streaming.kafka.maxRate=10000 \
+  --conf spark.streaming.receiver.maxRate=8000 \
+  --conf spark.streaming.kafka.maxRate=8000 \
   --conf spark.task.cpus=1 \
-  --conf spark.yarn.executor.memoryOverhead=1000 \
-  --conf spark.default.parallelism=42 \
+  --conf spark.shuffle.memoryFraction=0.5 \
+  --conf spark.yarn.executor.memoryOverhead=1024 \
+  --conf spark.default.parallelism=32 \
   --conf "spark.executor.extraJavaOptions=-XX:+UseCompressedOops" \
-  --conf spark.streaming.backpressure.enabled=true \
   $SCRIPT_DIR/${THIS}.py $KAFKA_OR_ZOOKEEPER $TOPIC $CASSANDRA
 
-#--conf spark.yarn.executor.memoryOverhead=1000 \
-#--conf "spark.executor.extraJavaOptions=-XX:+UseCompressedOops" \
+#--conf spark.streaming.backpressure.enabled=true \
