@@ -5,6 +5,7 @@ import time
 import sys
 from calendar import timegm
 from datetime import datetime
+from datetime import timedelta
 import itertools
 
 from pyspark import SparkContext
@@ -13,7 +14,11 @@ from pyspark.streaming.kafka import KafkaUtils
 
 import cassandra
 from cassandra.cluster import Cluster
+from cassandra.query import named_tuple_factory
 
+
+isoFormatDate = "%Y-%m-%d"
+isoFormatTime = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 def formatDates(data):
     flight = data[1].split("\t")
@@ -69,28 +74,6 @@ def groupsgen(seq, size):
             values += (it.next(),)
             yield values
 
-def cassandraStoreOrigins(iter):
-    cassandraCluster = Cluster(contact_points=cassandraHosts)
-    cas = cassandraCluster.connect('spark')
-    for b in groupsgen(iter, 100):
-        cBa = ''.join(["insert into trip_origins "
-                       "(date, date_time, carrier, flight, origin, destination, arrival_delay)"
-                       "values (%s, %s, '%s', '%s', '%s', '%s', %s)\n" % \
-                       record for record in b])
-        cas.execute_async("BEGIN BATCH\n" + cBa + "APPLY BATCH")
-    cas.shutdown()
-
-def cassandraStoreDestinations(iter):
-    cassandraCluster = Cluster(contact_points=cassandraHosts)
-    cas = cassandraCluster.connect('spark')
-    for b in groupsgen(iter, 100):
-        cBa = ''.join(["insert into trip_destinations "
-                       "(date, date_time, carrier, flight, origin, destination, arrival_delay)"
-                       "values (%s, %s, '%s', '%s', '%s', '%s', %s)\n" % \
-                       record for record in b])
-        cas.execute_async("BEGIN BATCH\n" + cBa + "APPLY BATCH")
-    cas.shutdown()
-
 def cassandraStoreBatch(iter):
     cassandraCluster = Cluster(contact_points=cassandraHosts)
     cas = cassandraCluster.connect('spark')
@@ -114,6 +97,45 @@ def cassandraStoreSingle(iter):
                           record)
     cas.shutdown()
 
+def cassandraStoreOrigins(iter):
+    cassandraCluster = Cluster(contact_points=cassandraHosts)
+    cas = cassandraCluster.connect('spark')
+    for b in groupsgen(iter, 100):
+        cBa = ''.join(["insert into trip_origins "
+                       "(date, date_time, carrier, flight, origin, destination, arrival_delay)"
+                       "values (%s, %s, '%s', '%s', '%s', '%s', %s)\n" % \
+                       record for record in b])
+        cas.execute("BEGIN BATCH\n" + cBa + "APPLY BATCH")
+    cas.shutdown()
+
+def cassandraStoreDestinations(iter):
+    cassandraCluster = Cluster(contact_points=cassandraHosts)
+    cas = cassandraCluster.connect('spark')
+    for b in groupsgen(iter, 100):
+        cBa = ''.join(["insert into trip_destinations "
+                       "(date, date_time, carrier, flight, origin, destination, arrival_delay)"
+                       "values (%s, %s, '%s', '%s', '%s', '%s', %s)\n" % \
+                       record for record in b])
+        cas.execute("BEGIN BATCH\n" + cBa + "APPLY BATCH")
+    cas.shutdown()
+
+def makeCombinations(iter):
+    cassandraCluster = Cluster(contact_points=cassandraHosts)
+    cas = cassandraCluster.connect('spark')
+    cas.row_factory = named_tuple_factory
+    for second in iter:
+        targetDate = datetime.fromtimestamp(second[0]/1000) + timedelta(days=-2)
+        result = cas.execute("SELECT * FROM trip_origins WHERE destination = '%s' AND date = '%s'" % (second[4], targetDate.isoformat()))
+        for first in result:
+            cas.execute(
+                "insert into trip_combinations "
+                "(origin_date, origin_date_time, origin_carrier, origin_flight, origin, connection, connection_arr_delay, "
+                "connection_date, connection_date_time, connection_carrier, connection_flight, destination, destination_arr_delay) "
+                "values ('%s', '%s', '%s', '%s', '%s', '%s', %s, '%s', '%s', '%s', '%s', '%s', %s)\n" % \
+                (first.date, first.date_time, first.carrier, first.flight, first.origin, first.destination, first.arrival_delay,
+                 second[0], second[1], second[2], second[3], second[5], second[6])
+                )
+    cas.shutdown()
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
@@ -141,9 +163,6 @@ if __name__ == "__main__":
     # 8 DepDelay:int,
     # 9 ArrDelay:int);
 
-    isoFormatDate = "%Y-%m-%d"
-    isoFormatTime = "%Y-%m-%dT%H:%M:%S.%fZ"
-
     # Result should only destination as key
     origins = ks.map(formatDates)\
                 .filter(lambda ((origin, dest, depTime), flight): depTime.hour < 12)\
@@ -154,7 +173,6 @@ if __name__ == "__main__":
                       timegm(v[2].timetuple()) * 1000,
                       v[4], v[5], v[6], v[7], v[8]))\
 
-    origins.pprint()
     origins.foreachRDD(lambda rdd: rdd.foreachPartition(cassandraStoreOrigins))
 
     # Result should only origin as key
@@ -162,12 +180,15 @@ if __name__ == "__main__":
                      .filter(lambda ((origin, dest, depTime), flight): depTime.hour >= 12)\
                      .groupByKey()\
                      .map(lambda ((origin, dest, depTime), flights): (origin, sorted(flights, key=lambda fields: fields[9])[0]))\
+                     .map(lambda (k, v):
+                          (timegm(v[1].timetuple()) * 1000,
+                           timegm(v[2].timetuple()) * 1000,
+                           v[4], v[5], v[6], v[7], v[8]))\
 
-    def toCSVLine(data):
-        return ','.join('"' + str(d) + '"' for d in data)
-    #lines = pretty.map(toCSVLine)
+    destinations.foreachRDD(lambda rdd: rdd.foreachPartition(cassandraStoreDestinations))
+    destinations.foreachRDD(lambda rdd: rdd.foreachPartition(makeCombinations))
 
-    #toCassandra.foreachRDD(lambda rdd: rdd.foreachPartition(cassandraStoreBatch))
+    origins.pprint()
 
     ssc.start()
     ssc.awaitTermination()

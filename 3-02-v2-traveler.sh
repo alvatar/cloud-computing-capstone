@@ -19,7 +19,7 @@ CREATE TABLE trip_origins (date timestamp,
                            origin text,
                            destination text,
                            arrival_delay float,
-                           PRIMARY KEY(destination, date));
+                           PRIMARY KEY(destination, date, origin));
 
 DROP TABLE trip_destinations;
 CREATE TABLE trip_destinations (date timestamp,
@@ -29,7 +29,7 @@ CREATE TABLE trip_destinations (date timestamp,
                            origin text,
                            destination text,
                            arrival_delay float,
-                           PRIMARY KEY(origins, date));
+                           PRIMARY KEY(origin, date, destination));
 
 DROP TABLE trip_combinations;
 CREATE TABLE trip_combinations ( origin_date timestamp,
