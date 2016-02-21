@@ -127,7 +127,7 @@ def makeCombinations(iter):
         targetDate = datetime.fromtimestamp(second[0]/1000) + timedelta(days=-2)
         result = cas.execute("SELECT * FROM trip_origins WHERE destination = '%s' AND date = '%s'" % (second[4], targetDate.isoformat()))
         for first in result:
-            cas.execute(
+            cas.execute_async(
                 "insert into trip_combinations "
                 "(origin_date, origin_date_time, origin_carrier, origin_flight, origin, connection, connection_arr_delay, "
                 "connection_date, connection_date_time, connection_carrier, connection_flight, destination, destination_arr_delay) "
